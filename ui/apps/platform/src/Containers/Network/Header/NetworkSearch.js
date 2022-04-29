@@ -1,29 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { connect } from 'react-redux';
 import { createStructuredSelector } from 'reselect';
+import isEqual from 'lodash/isEqual';
 
 import { selectors } from 'reducers';
 import { actions as pageActions } from 'reducers/network/page';
 import { actions as searchActions } from 'reducers/network/search';
+import useURLSearch from 'hooks/useURLSearch';
+import searchOptionsToQuery from 'services/searchOptionsToQuery';
+import { getSearchOptionsForCategory } from 'services/SearchService';
+import { isCompleteSearchFilter } from 'utils/searchUtils';
+import SearchFilterInput from 'Components/SearchFilterInput';
 import {
     ORCHESTRATOR_COMPONENT_KEY,
     orchestratorComponentOption,
 } from 'Containers/Navigation/OrchestratorComponentsToggle';
-import ReduxSearchInput from 'Containers/Search/ReduxSearchInput';
 
 import './NetworkSearch.css';
 
+function searchFilterToSearchEntries(searchFilter) {
+    return Object.entries(searchFilter).flatMap(([key, value]) => {
+        const values = Array.isArray(value) ? value : [value];
+        const valueOptions = values.map((v) => ({ label: v, value: v }));
+        return [{ label: `${key}:`, value: `${key}:`, type: 'categoryOption' }, ...valueOptions];
+    });
+}
+
+const searchCategory = 'DEPLOYMENTS';
+
 function NetworkSearch({
-    searchOptions,
-    searchModifiers,
     selectedNamespaceFilters,
-    setSearchOptions,
-    setSearchSuggestions,
+    dispatchSearchFilter,
     closeSidePanel,
     isDisabled,
 }) {
+    const [searchOptions, setSearchOptions] = useState([]);
+    const { searchFilter, setSearchFilter } = useURLSearch();
+
+    useEffect(() => {
+        const { request, cancel } = getSearchOptionsForCategory(searchCategory);
+        request.then(setSearchOptions).catch(() => {
+            // A request error will disable the search filter.
+        });
+
+        return cancel;
+    }, [setSearchOptions]);
+
+    // Keep the Redux store in sync with the URL Search Filter
+    useEffect(() => {
+        dispatchSearchFilter(searchFilterToSearchEntries(searchFilter));
+    }, [searchFilter, dispatchSearchFilter]);
+
     function onSearch(options) {
-        if (options.length && !options[options.length - 1].type) {
+        setSearchFilter(options);
+        if (isCompleteSearchFilter(options)) {
             closeSidePanel();
         }
     }
@@ -40,30 +70,25 @@ function NetworkSearch({
     }
 
     return (
-        <ReduxSearchInput
+        <SearchFilterInput
             className="pf-u-w-100 network-search"
             placeholder="Add one or more deployment filters"
+            searchFilter={searchFilter}
+            searchCategory="DEPLOYMENTS"
             searchOptions={searchOptions}
-            searchModifiers={searchModifiers}
-            setSearchOptions={setSearchOptions}
-            setSearchSuggestions={setSearchSuggestions}
-            onSearch={onSearch}
+            handleChangeSearchFilter={onSearch}
+            autocompleteQueryPrefix={searchOptionsToQuery(prependAutocompleteQuery)}
             isDisabled={isDisabled}
-            prependAutocompleteQuery={prependAutocompleteQuery}
-            autoCompleteCategories={['DEPLOYMENTS']}
         />
     );
 }
 
 const mapStateToProps = createStructuredSelector({
-    searchOptions: selectors.getNetworkSearchOptions,
-    searchModifiers: selectors.getNetworkSearchModifiers,
     selectedNamespaceFilters: selectors.getSelectedNamespaceFilters,
 });
 
 const mapDispatchToProps = {
-    setSearchOptions: searchActions.setNetworkSearchOptions,
-    setSearchSuggestions: searchActions.setNetworkSearchSuggestions,
+    dispatchSearchFilter: searchActions.setNetworkSearchOptions,
     closeSidePanel: pageActions.closeSidePanel,
 };
 

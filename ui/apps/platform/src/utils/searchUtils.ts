@@ -113,6 +113,11 @@ export function searchOptionsToSearchFilter(searchOptions: GlobalSearchOption[])
     return searchFilter;
 }
 
+// TODO Comments and tests
+export function isCompleteSearchFilter(searchFilter: SearchFilter) {
+    return Object.values(searchFilter).every((o) => o !== '');
+}
+
 /*
  * Return request query string for search filter. Omit filter criterion:
  * If option does not have value.

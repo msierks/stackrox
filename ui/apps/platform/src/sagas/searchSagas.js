@@ -1,11 +1,10 @@
 import { all, put, call } from 'redux-saga/effects';
 
-import { mainPath, policiesPath, imagesPath, secretsPath, networkPath } from 'routePaths';
+import { mainPath, policiesPath, imagesPath, secretsPath } from 'routePaths';
 import { takeEveryNewlyMatchedLocation } from 'utils/sagaEffects';
 import { actions as policiesActions } from 'reducers/policies/search';
 import { actions as imagesActions } from 'reducers/images';
 import { actions as secretsActions } from 'reducers/secrets';
-import { actions as networkActions } from 'reducers/network/search';
 import { actions as globalSearchActions } from 'reducers/globalSearch';
 import { fetchOptions } from 'services/SearchService';
 import capitalize from 'lodash/capitalize';
@@ -99,14 +98,6 @@ export default function* searches() {
             secretsActions.setSecretsSearchSuggestions,
             secretsActions.setSecretsSearchOptions,
             'categories=SECRETS'
-        ),
-        takeEveryNewlyMatchedLocation(
-            networkPath,
-            getSearchOptions,
-            networkActions.setNetworkSearchModifiers,
-            networkActions.setNetworkSearchSuggestions,
-            networkActions.setNetworkSearchOptions,
-            'categories=DEPLOYMENTS'
         ),
     ]);
 }
