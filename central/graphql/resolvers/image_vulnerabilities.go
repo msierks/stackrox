@@ -123,7 +123,7 @@ func (resolver *Resolver) ImageVulnerabilityCount(ctx context.Context, args RawQ
 
 // ImageVulnCounter returns a VulnerabilityCounterResolver for the input query.s
 func (resolver *Resolver) ImageVulnCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
-	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Root, "VulnCounter")
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Root, "ImageVulnCounter")
 	if !features.PostgresDatastore.Enabled() {
 		query := withImageTypeFiltering(args.String())
 		return resolver.vulnCounterV2(ctx, RawQuery{Query: &query})
