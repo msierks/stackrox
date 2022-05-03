@@ -12,6 +12,7 @@ import (
 	riskDS "github.com/stackrox/rox/central/risk/datastore"
 	v1 "github.com/stackrox/rox/generated/api/v1"
 	"github.com/stackrox/rox/generated/storage"
+	"github.com/stackrox/rox/pkg/features"
 	pkgMetrics "github.com/stackrox/rox/pkg/metrics"
 	"github.com/stackrox/rox/pkg/search"
 	"github.com/stackrox/rox/pkg/search/scoped"
@@ -497,37 +498,42 @@ func (resolver *namespaceResolver) ComponentCount(ctx context.Context, args RawQ
 	}), RawQuery{Query: &query})
 }
 
-func (resolver *namespaceResolver) Vulns(ctx context.Context, args PaginatedQuery) ([]VulnerabilityResolver, error) {
+func (resolver *namespaceResolver) vulnQueryScoping(ctx context.Context, query string) (context.Context, string) {
+	ret := search.AddRawQueriesAsConjunction(query, resolver.getNamespaceIDRawQuery())
+
+	// if postgres is enabled then we should only have to add the id as conjunction and not add scoping
+	if !features.PostgresDatastore.Enabled() {
+		ctx = scoped.Context(ctx, scoped.Scope{
+			Level: v1.SearchCategory_NAMESPACES,
+			ID:    resolver.data.Metadata.GetId(),
+		})
+	}
+
+	return ctx, ret
+}
+
+func (resolver *namespaceResolver) Vulns(ctx context.Context, args PaginatedQuery) ([]ImageVulnerabilityResolver, error) {
 	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "Vulns")
 
-	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getNamespaceIDRawQuery())
+	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
 
-	return resolver.root.Vulnerabilities(scoped.Context(ctx, scoped.Scope{
-		Level: v1.SearchCategory_NAMESPACES,
-		ID:    resolver.data.GetMetadata().GetId(),
-	}), PaginatedQuery{Query: &query, Pagination: args.Pagination})
+	return resolver.root.ImageVulnerabilities(ctx, PaginatedQuery{Query: &query, Pagination: args.Pagination})
 }
 
 func (resolver *namespaceResolver) VulnCount(ctx context.Context, args RawQuery) (int32, error) {
 	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "VulnCount")
 
-	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getNamespaceIDRawQuery())
+	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
 
-	return resolver.root.VulnerabilityCount(scoped.Context(ctx, scoped.Scope{
-		Level: v1.SearchCategory_NAMESPACES,
-		ID:    resolver.data.GetMetadata().GetId(),
-	}), RawQuery{Query: &query})
+	return resolver.root.ImageVulnerabilityCount(ctx, RawQuery{Query: &query})
 }
 
 func (resolver *namespaceResolver) VulnCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
 	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "VulnCounter")
 
-	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getNamespaceIDRawQuery())
+	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
 
-	return resolver.root.VulnCounter(scoped.Context(ctx, scoped.Scope{
-		Level: v1.SearchCategory_NAMESPACES,
-		ID:    resolver.data.GetMetadata().GetId(),
-	}), RawQuery{Query: &query})
+	return resolver.root.ImageVulnCounter(ctx, RawQuery{Query: &query})
 }
 
 func (resolver *namespaceResolver) Secrets(ctx context.Context, args PaginatedQuery) ([]*secretResolver, error) {
