@@ -19,11 +19,16 @@ import {
 import './NetworkSearch.css';
 
 function searchFilterToSearchEntries(searchFilter) {
-    return Object.entries(searchFilter).flatMap(([key, value]) => {
-        const values = Array.isArray(value) ? value : [value];
-        const valueOptions = values.map((v) => ({ label: v, value: v }));
-        return [{ label: `${key}:`, value: `${key}:`, type: 'categoryOption' }, ...valueOptions];
+    const entries = [];
+    Object.entries(searchFilter).forEach(([key, value]) => {
+        entries.push({ label: `${key}:`, value: `${key}:`, type: 'categoryOption' });
+        if (value !== '') {
+            const values = Array.isArray(value) ? value : [value];
+            const valueOptions = values.map((v) => ({ label: v, value: v }));
+            entries.push(...valueOptions);
+        }
     });
+    return entries;
 }
 
 const searchCategory = 'DEPLOYMENTS';
