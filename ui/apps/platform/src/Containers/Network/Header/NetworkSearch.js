@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { connect } from 'react-redux';
 import { createStructuredSelector } from 'reselect';
-import isEqual from 'lodash/isEqual';
 
 import { selectors } from 'reducers';
 import { actions as pageActions } from 'reducers/network/page';
