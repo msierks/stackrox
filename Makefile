@@ -12,6 +12,8 @@ TAG=$(shell cat CI_TAG)
 endif
 endif
 
+QUAY_TAG_EXPIRATION=$(shell echo $(TAG) | if egrep -xq "[0-9]+(\.[0-9]+)?\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?"; then echo 24w; else echo 3w; fi)
+
 # ROX_IMAGE_FLAVOR is an ARG used in Dockerfiles that defines the default registries for main, scaner, and collector images.
 # ROX_IMAGE_FLAVOR valid values are: development_build, stackrox.io, rhacs.
 # The value is assigned as following:
@@ -513,6 +515,7 @@ docker-build-main-image: copy-binaries-to-image-dir docker-build-data-image $(CU
 		--file image/rhel/Dockerfile \
 		--label version=$(TAG) \
 		--label release=$(TAG) \
+		--label quay.expires-after=$(QUAY_TAG_EXPIRATION) \
 		image/rhel
 	@echo "Built main image for RHEL with tag: $(TAG), image flavor: $(ROX_IMAGE_FLAVOR)"
 	@echo "You may wish to:       export MAIN_IMAGE_TAG=$(TAG)"
@@ -525,6 +528,7 @@ docs-image:
 docker-build-data-image: docs-image
 	docker build -t stackrox-data:$(TAG) \
 	    --build-arg DOCS_IMAGE=$(DOCS_IMAGE) \
+		--label quay.expires-after=$(QUAY_TAG_EXPIRATION) \
 		image/ \
 		--file image/stackrox-data.Dockerfile
 
@@ -535,6 +539,7 @@ docker-build-roxctl-image:
 		-t stackrox/roxctl:$(TAG) \
 		-t $(DEFAULT_IMAGE_REGISTRY)/roxctl:$(TAG) \
 		-f image/roxctl.Dockerfile \
+		--label quay.expires-after=$(QUAY_TAG_EXPIRATION) \
 		image/
 
 .PHONY: copy-go-binaries-to-image-dir
