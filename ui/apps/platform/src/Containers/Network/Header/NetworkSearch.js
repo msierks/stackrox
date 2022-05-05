@@ -31,6 +31,7 @@ function searchFilterToSearchEntries(searchFilter) {
 }
 
 const searchCategory = 'DEPLOYMENTS';
+const searchOptionExclusions = ['Cluster', 'Namespace', 'Namespace ID', 'Orchestrator Component'];
 
 function NetworkSearch({
     selectedNamespaceFilters,
@@ -43,9 +44,14 @@ function NetworkSearch({
 
     useEffect(() => {
         const { request, cancel } = getSearchOptionsForCategory(searchCategory);
-        request.then(setSearchOptions).catch(() => {
-            // A request error will disable the search filter.
-        });
+        request
+            .then((options) => {
+                const filteredOptions = options.filter((o) => !searchOptionExclusions.includes(o));
+                setSearchOptions(filteredOptions);
+            })
+            .catch(() => {
+                // A request error will disable the search filter.
+            });
 
         return cancel;
     }, [setSearchOptions]);
