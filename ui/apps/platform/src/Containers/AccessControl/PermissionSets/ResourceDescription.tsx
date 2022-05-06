@@ -24,7 +24,7 @@ const resourceDescriptions: Record<ResourceName, string> = {
         'Read: View recent compliance runs and their completion status. Write: Trigger compliance runs.',
     Config: 'Read: View options for data retention, security notices, and other related configurations. Write: Modify options for data retention, security notices, and other related configurations.',
     DebugLogs:
-        "Read: View the current logging verbosity level of all components, including Central, Scanner, Sensor, Collector, and Admission controller. Download diagnostic bundle. Note: The diagnostic bundle contains information about all clusters and namespaces regardless of the user's role and access scope. Don't give this permission to users with limited access scope. Write: Modify the logging verbosity level.",
+        "Read: View the current logging verbosity level of all components, including Central, Scanner, Sensor, Collector, and Admission controller. Download diagnostic bundle. Note: The diagnostic bundle contains information about all clusters and namespaces regardless of the user's role and access scope. It also contains information about access control, notifier integrations, and system configuration, regardless of the user's role. Don't give this permission to users with limited access scope. Write: Modify the logging verbosity level.",
     Deployment: 'Read: View deployments (workloads) in secured clusters. Write: N/A',
     Detection: 'Read: Check build-time policies against images or deployment YAMLs. Write: N/A',
     Group: 'Read: View the RBAC rules that match user metadata to the system roles. Write: Add, modify, or delete RBAC rules.',
