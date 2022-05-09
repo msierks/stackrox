@@ -117,11 +117,6 @@ func (eicr *imageComponentResolver) LastScanned(ctx context.Context) (*graphql.T
 	return timestamp(images[0].GetScan().GetScanTime())
 }
 
-// TopImageVuln returns an ImageVulnerabilityResolver as a wrapper of TopVuln
-func (eicr *imageComponentResolver) TopImageVuln(ctx context.Context) (ImageVulnerabilityResolver, error) {
-	return eicr.TopVuln(ctx)
-}
-
 // TopVuln returns the first vulnerability with the top CVSS score.
 func (eicr *imageComponentResolver) TopVuln(ctx context.Context) (VulnerabilityResolver, error) {
 	if eicr.data.GetSetTopCvss() == nil {
@@ -162,14 +157,6 @@ func (eicr *imageComponentResolver) TopVuln(ctx context.Context) (VulnerabilityR
 	}, nil
 }
 
-// ImageVulns resolves the vulnerabilities contained in the image component.
-func (eicr *imageComponentResolver) ImageVulns(_ context.Context, args PaginatedQuery) ([]ImageVulnerabilityResolver, error) {
-	return eicr.root.ImageVulnerabilities(scoped.Context(eicr.ctx, scoped.Scope{
-		Level: v1.SearchCategory_IMAGE_COMPONENTS,
-		ID:    eicr.data.GetId(),
-	}), args)
-}
-
 // Vulns resolves the vulnerabilities contained in the image component.
 func (eicr *imageComponentResolver) Vulns(_ context.Context, args PaginatedQuery) ([]VulnerabilityResolver, error) {
 	query, err := args.AsV1QueryOrEmpty()
@@ -199,14 +186,6 @@ func (eicr *imageComponentResolver) Vulns(_ context.Context, args PaginatedQuery
 	}), query)
 }
 
-// ImageVulnCount resolves the number of vulnerabilities contained in the image component.
-func (eicr *imageComponentResolver) ImageVulnCount(_ context.Context, args RawQuery) (int32, error) {
-	return eicr.root.ImageVulnerabilityCount(scoped.Context(eicr.ctx, scoped.Scope{
-		Level: v1.SearchCategory_IMAGE_COMPONENTS,
-		ID:    eicr.data.GetId(),
-	}), args)
-}
-
 // VulnCount resolves the number of vulnerabilities contained in the image component.
 func (eicr *imageComponentResolver) VulnCount(_ context.Context, args RawQuery) (int32, error) {
 	query, err := args.AsV1QueryOrEmpty()
@@ -231,14 +210,6 @@ func (eicr *imageComponentResolver) VulnCount(_ context.Context, args RawQuery) 
 		Level: v1.SearchCategory_IMAGE_COMPONENTS,
 		ID:    eicr.data.GetId(),
 	}), query)
-}
-
-// ImageVulnCounter
-func (eicr *imageComponentResolver) ImageVulnCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
-	return eicr.root.ImageVulnerabilityCount(scoped.Context(eicr.ctx, scoped.Scope{
-		Level: v1.SearchCategory_IMAGE_COMPONENTS,
-		ID:    eicr.data.GetId(),
-	}), args)
 }
 
 // VulnCounter resolves the number of different types of vulnerabilities contained in an image component.
