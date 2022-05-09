@@ -556,28 +556,41 @@ func (resolver *clusterResolver) VulnCounter(ctx context.Context, args RawQuery)
 	return resolver.root.VulnCounter(ctx, RawQuery{Query: &query})
 }
 
-func (resolver *clusterResolver) ImageVulns(ctx context.Context, args PaginatedQuery) ([]ImageVulnerabilityResolver, error) {
-	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Cluster, "ImageVulns")
+func (resolver *clusterResolver) vulnQueryScoping(ctx context.Context, query string) (context.Context, string) {
+	// TODO check to see if we actually need this line
+	query = search.AddRawQueriesAsConjunction(query, resolver.getClusterRawQuery())
 
-	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getClusterRawQuery())
+	// TODO check to see if this is causing problems
+	ctx = scoped.Context(ctx, scoped.Scope{
+		Level: v1.SearchCategory_CLUSTERS,
+		ID:    resolver.data.GetId(),
+	})
+
+	return ctx, query
+}
+
+func (resolver *clusterResolver) ImageVulnerabilities(ctx context.Context, args PaginatedQuery) ([]ImageVulnerabilityResolver, error) {
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Cluster, "ImageVulnerabilities")
+
+	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
 
 	return resolver.root.ImageVulnerabilities(ctx, PaginatedQuery{Query: &query, Pagination: args.Pagination})
 }
 
-func (resolver *clusterResolver) ImageVulnCount(ctx context.Context, args RawQuery) (int32, error) {
-	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Cluster, "ImageVulnCount")
+func (resolver *clusterResolver) ImageVulnerabilityCount(ctx context.Context, args RawQuery) (int32, error) {
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Cluster, "ImageVulnerabilityCount")
 
-	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getClusterRawQuery())
+	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
 
 	return resolver.root.ImageVulnerabilityCount(ctx, RawQuery{Query: &query})
 }
 
-func (resolver *clusterResolver) ImageVulnCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
-	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Cluster, "VulnCounter")
+func (resolver *clusterResolver) ImageVulnerabilityCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Cluster, "ImageVulnerabilityCounter")
 
-	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getClusterRawQuery())
+	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
 
-	return resolver.root.ImageVulnCounter(ctx, RawQuery{Query: &query})
+	return resolver.root.ImageVulnerabilityCounter(ctx, RawQuery{Query: &query})
 }
 
 func (resolver *clusterResolver) K8sVulns(ctx context.Context, args PaginatedQuery) ([]VulnerabilityResolver, error) {
