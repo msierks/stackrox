@@ -12,7 +12,6 @@ import (
 	riskDS "github.com/stackrox/rox/central/risk/datastore"
 	v1 "github.com/stackrox/rox/generated/api/v1"
 	"github.com/stackrox/rox/generated/storage"
-	"github.com/stackrox/rox/pkg/features"
 	pkgMetrics "github.com/stackrox/rox/pkg/metrics"
 	"github.com/stackrox/rox/pkg/search"
 	"github.com/stackrox/rox/pkg/search/scoped"
@@ -23,38 +22,43 @@ import (
 func init() {
 	schema := getBuilder()
 	utils.Must(
+		schema.AddExtraResolvers("Namespace", []string{
+			"complianceResults(query: String): [ControlResult!]!",
+			"subjects(query: String, pagination: Pagination): [Subject!]!",
+			"subjectCount(query: String): Int!",
+			"serviceAccountCount(query: String): Int!",
+			"serviceAccounts(query: String, pagination: Pagination): [ServiceAccount!]!",
+			"k8sRoleCount(query: String): Int!",
+			"k8sRoles(query: String, pagination: Pagination): [K8SRole!]!",
+			"policyCount(query: String): Int!",
+			"policyStatus(query: String): PolicyStatus!",
+			"policyStatusOnly(query: String): String!",
+			"policies(query: String, pagination: Pagination): [Policy!]!",
+			"failingPolicyCounter(query: String): PolicyCounter",
+			"images(query: String, pagination: Pagination): [Image!]!",
+			"imageCount(query: String): Int!",
+			"components(query: String, pagination: Pagination): [EmbeddedImageScanComponent!]!",
+			"componentCount(query: String): Int!",
+			"vulnerabilities(query: String, scopeQuery: String, pagination: Pagination): [ImageVulnerability!]!",
+			"vulnerabilityCount(query: String): Int!",
+			"vulnerabilityCounter(query: String): VulnerabilityCounter!",
+			"vulns(query: String, scopeQuery: String, pagination: Pagination): [EmbeddedVulnerability!]!",
+			"vulnCount(query: String): Int!",
+			"vulnCounter(query: String): VulnerabilityCounter!",
+			"secrets(query: String, pagination: Pagination): [Secret!]!",
+			"deployments(query: String, pagination: Pagination): [Deployment!]!",
+			"cluster: Cluster!",
+			"secretCount(query: String): Int!",
+			"deploymentCount(query: String): Int!",
+			"risk: Risk",
+			"latestViolation(query: String): Time",
+			"unusedVarSink(query: String): Int",
+			"plottedVulns(query: String): PlottedVulnerabilities!",
+		}),
 		schema.AddQuery("namespaces(query: String, pagination: Pagination): [Namespace!]!"),
 		schema.AddQuery("namespace(id: ID!): Namespace"),
 		schema.AddQuery("namespaceByClusterIDAndName(clusterID: ID!, name: String!): Namespace"),
 		schema.AddQuery("namespaceCount(query: String): Int!"),
-		schema.AddExtraResolver("Namespace", "complianceResults(query: String): [ControlResult!]!"),
-		schema.AddExtraResolver("Namespace", `subjects(query: String, pagination: Pagination): [Subject!]!`),
-		schema.AddExtraResolver("Namespace", `subjectCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `serviceAccountCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `serviceAccounts(query: String, pagination: Pagination): [ServiceAccount!]!`),
-		schema.AddExtraResolver("Namespace", `k8sRoleCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `k8sRoles(query: String, pagination: Pagination): [K8SRole!]!`),
-		schema.AddExtraResolver("Namespace", `policyCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `policyStatus(query: String): PolicyStatus!`),
-		schema.AddExtraResolver("Namespace", `policyStatusOnly(query: String): String!`),
-		schema.AddExtraResolver("Namespace", `policies(query: String, pagination: Pagination): [Policy!]!`),
-		schema.AddExtraResolver("Namespace", `failingPolicyCounter(query: String): PolicyCounter`),
-		schema.AddExtraResolver("Namespace", `images(query: String, pagination: Pagination): [Image!]!`),
-		schema.AddExtraResolver("Namespace", `imageCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `components(query: String, pagination: Pagination): [EmbeddedImageScanComponent!]!`),
-		schema.AddExtraResolver("Namespace", `componentCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `vulns(query: String, scopeQuery: String, pagination: Pagination): [EmbeddedVulnerability!]!`),
-		schema.AddExtraResolver("Namespace", `vulnCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `vulnCounter(query: String): VulnerabilityCounter!`),
-		schema.AddExtraResolver("Namespace", `secrets(query: String, pagination: Pagination): [Secret!]!`),
-		schema.AddExtraResolver("Namespace", `deployments(query: String, pagination: Pagination): [Deployment!]!`),
-		schema.AddExtraResolver("Namespace", "cluster: Cluster!"),
-		schema.AddExtraResolver("Namespace", `secretCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `deploymentCount(query: String): Int!`),
-		schema.AddExtraResolver("Namespace", `risk: Risk`),
-		schema.AddExtraResolver("Namespace", "latestViolation(query: String): Time"),
-		schema.AddExtraResolver("Namespace", `unusedVarSink(query: String): Int`),
-		schema.AddExtraResolver("Namespace", "plottedVulns(query: String): PlottedVulnerabilities!"),
 	)
 }
 
@@ -498,42 +502,70 @@ func (resolver *namespaceResolver) ComponentCount(ctx context.Context, args RawQ
 	}), RawQuery{Query: &query})
 }
 
-func (resolver *namespaceResolver) vulnQueryScoping(ctx context.Context, query string) (context.Context, string) {
-	ret := search.AddRawQueriesAsConjunction(query, resolver.getNamespaceIDRawQuery())
+func (resolver *namespaceResolver) vulnQueryScoping(ctx context.Context) context.Context {
+	ctx = scoped.Context(ctx, scoped.Scope{
+		Level: v1.SearchCategory_NAMESPACES,
+		ID:    resolver.data.Metadata.GetId(),
+	})
 
-	// if postgres is enabled then we should only have to add the id as conjunction and not add scoping
-	if !features.PostgresDatastore.Enabled() {
-		ctx = scoped.Context(ctx, scoped.Scope{
-			Level: v1.SearchCategory_NAMESPACES,
-			ID:    resolver.data.Metadata.GetId(),
-		})
-	}
-
-	return ctx, ret
+	return ctx
 }
 
-func (resolver *namespaceResolver) Vulns(ctx context.Context, args PaginatedQuery) ([]ImageVulnerabilityResolver, error) {
+func (resolver *namespaceResolver) Vulnerabilities(ctx context.Context, args PaginatedQuery) ([]ImageVulnerabilityResolver, error) {
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "Vulnerabilities")
+
+	ctx = resolver.vulnQueryScoping(ctx)
+
+	return resolver.root.ImageVulnerabilities(ctx, args)
+}
+
+func (resolver *namespaceResolver) VulnerabilityCount(ctx context.Context, args RawQuery) (int32, error) {
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "VulnerabilityCount")
+
+	ctx = resolver.vulnQueryScoping(ctx)
+
+	return resolver.root.ImageVulnerabilityCount(ctx, args)
+}
+
+func (resolver *namespaceResolver) VulnerabilityCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
+	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "VulnerabilityCounter")
+
+	ctx = resolver.vulnQueryScoping(ctx)
+
+	return resolver.root.ImageVulnerabilityCounter(ctx, args)
+}
+
+func (resolver *namespaceResolver) Vulns(ctx context.Context, args PaginatedQuery) ([]VulnerabilityResolver, error) {
 	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "Vulns")
 
-	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
+	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getNamespaceIDRawQuery())
 
-	return resolver.root.ImageVulnerabilities(ctx, PaginatedQuery{Query: &query, Pagination: args.Pagination})
+	return resolver.root.Vulnerabilities(scoped.Context(ctx, scoped.Scope{
+		Level: v1.SearchCategory_NAMESPACES,
+		ID:    resolver.data.GetMetadata().GetId(),
+	}), PaginatedQuery{Query: &query, Pagination: args.Pagination})
 }
 
 func (resolver *namespaceResolver) VulnCount(ctx context.Context, args RawQuery) (int32, error) {
 	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "VulnCount")
 
-	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
+	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getNamespaceIDRawQuery())
 
-	return resolver.root.ImageVulnerabilityCount(ctx, RawQuery{Query: &query})
+	return resolver.root.VulnerabilityCount(scoped.Context(ctx, scoped.Scope{
+		Level: v1.SearchCategory_NAMESPACES,
+		ID:    resolver.data.GetMetadata().GetId(),
+	}), RawQuery{Query: &query})
 }
 
 func (resolver *namespaceResolver) VulnCounter(ctx context.Context, args RawQuery) (*VulnerabilityCounterResolver, error) {
 	defer metrics.SetGraphQLOperationDurationTime(time.Now(), pkgMetrics.Namespaces, "VulnCounter")
 
-	ctx, query := resolver.vulnQueryScoping(ctx, args.String())
+	query := search.AddRawQueriesAsConjunction(args.String(), resolver.getNamespaceIDRawQuery())
 
-	return resolver.root.ImageVulnCounter(ctx, RawQuery{Query: &query})
+	return resolver.root.VulnCounter(scoped.Context(ctx, scoped.Scope{
+		Level: v1.SearchCategory_NAMESPACES,
+		ID:    resolver.data.GetMetadata().GetId(),
+	}), RawQuery{Query: &query})
 }
 
 func (resolver *namespaceResolver) Secrets(ctx context.Context, args PaginatedQuery) ([]*secretResolver, error) {
