@@ -13,7 +13,7 @@ endif
 endif
 
 ifeq ($(findstring x,$(TAG)),x)
-QUAY_TAG_EXPIRATION="--label quay.expires-after=1w"
+QUAY_TAG_EXPIRATION=--label quay.expires-after=1w
 endif
 
 # ROX_IMAGE_FLAVOR is an ARG used in Dockerfiles that defines the default registries for main, scaner, and collector images.
