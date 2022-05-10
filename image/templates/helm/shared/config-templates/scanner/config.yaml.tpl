@@ -8,7 +8,8 @@
 # Configuration file for scanner.
 
 scanner:
-  centralEndpoint: https://central.{{ .Release.Namespace }}.svc
+  centralEndpoint: central.{{ .Release.Namespace }}.svc
+  sensorEndpoint: sensor.{{ .Release.Namespace }}.svc
   database:
     # Database driver
     type: pgsql
